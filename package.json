@@ -22,5 +22,15 @@
   "bugs": {
     "url": "https://github.com/AzureKn1ght/AMM-Volume-Bot/issues"
   },
-  "homepage": "https://github.com/AzureKn1ght/AMM-Volume-Bot#readme"
+  "homepage": "https://github.com/AzureKn1ght/AMM-Volume-Bot#readme",
+  "devDependencies": {
+    "eslint": "^8.52.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "ethers": "^6.8.0",
+    "figlet": "^1.7.0",
+    "node-schedule": "^2.1.1",
+    "nodemailer": "^6.9.7"
+  }
 }
