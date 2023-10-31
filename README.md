@@ -1,5 +1,5 @@
 # AMM Volume Bot
-[![UNISWAP](https://www.bitkub.com/static/images/buy-sell/coin_header/42-Uniswap-H.svg)]
+![UNISWAP](https://cryptoradar.com/cms/content/images/2022/02/What-is-UNI.png)
 
 AMM Volume Bot 
 
