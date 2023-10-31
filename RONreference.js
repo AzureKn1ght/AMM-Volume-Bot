@@ -2,7 +2,7 @@
 - RON Compound - 
 This strategy involves claiming farm reward (RON tokens) and swapping the rewards to proportional RON and WETH to create LP tokens and deposit the LP tokens into the farm on the Katana DEX for RON rewards, thereby compounding the daily RON yields. 
 
-URL: https://katana.roninchain.com/#/farm
+Git: https://github.com/AzureKn1ght/AMM-Volume-Bot
 */
 
 // Import required node modules
@@ -17,26 +17,23 @@ const fs = require("fs");
 const WALLET_ADDRESS = process.env.USER_ADDRESS;
 const PRIV_KEY = process.env.USER_PRIVATE_KEY;
 const USER_AGENT = process.env.USER_AGENT;
-const RPC_URL = process.env.RONIN_RPC;
+const RPC_URL = process.env.RPC_URL;
 
-// State storage object for trades
+// Storage obj 
 var report = [];
 var trades = {
   previousTrade: "",
   nextTrade: "",
 };
 
-// Contract ABIs
-const erc20ABI = ["function balanceOf(address) view returns (uint256)"];
-const lpABI = require("./ABI/liquidityPoolABI");
-const tradesABI = require("./ABI/stakingABI");
-const katanaABI = require("./ABI/katanaABI");
-const ronStakerABI = tradesABI;
+// Contract ABI (please grant ERC20 approvals)
+const uniswapABI = require("./ABI/uniswapABI");
 
-// All relevant addresses needed
-const WETH = "0xc99a6a985ed2cac1ef41640596c5a5f9f4e19ef5";
-const LPtoken = "0x2ecb08f87f075b5769fe543d0e52e40140575ea7";
-const katanaAdd = "0x7d0556d55ca1a92708681e2e231733ebd922597d";
+// All relevant addresses needed (is WBNB and PCS on BSC)
+const KTP = "0xc6C0C0f54a394931a5b224c8b53406633e35eeE7";
+const USDT = "0x55d398326f99059fF775485246999027B3197955";
+const WETH = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+const uniswapAdr = "0x10ED43C718714eb63d5aA57B78B54704E256024E";
 
 // Ethers vars for web3 connections
 var wallet, provider, uniswapRouter;
@@ -101,7 +98,7 @@ const connect = async () => {
   wallet = new ethers.Wallet(PRIV_KEY, provider);
 
   // uniswap router contract
-  uniswapRouter = new ethers.Contract(katanaAdd, katanaABI, wallet);
+  uniswapRouter = new ethers.Contract(uniswapAdr, uniswapABI, wallet);
 
   // connection established
   const balance = await provider.getBalance(WALLET_ADDRESS);
@@ -121,21 +118,13 @@ const disconnect = () => {
 const AMMTrade = async () => {
   console.log("\n--- AMMTrade Start ---");
   report.push("--- AMMTrade Report ---");
+  report.push(`By: ${WALLET_ADDRESS}`);
   try {
     await connect();
+    const result = await sellTokensCreateVolume();
 
-    // call the trading function here
-    // remember to try 3 times on error
-
-    // function status
-    const compound = {
-      claimRONrewards: ronBalance > 0,
-      addRewardstoLP: LPtokenBal > 0,
-      stakeLPintoFarm: staked,
-      // just report on the trade status
-    };
-
-    report.push(compound);
+    // update on status
+    report.push(result);
   } catch (error) {
     report.push("AMMTrade failed!");
     report.push(error);
@@ -151,6 +140,11 @@ const AMMTrade = async () => {
   report = [];
 
   return disconnect();
+};
+
+// AMM Volume Trading Function
+const sellTokensCreateVolume = async (tries = 1.0) => {
+  return true;
 };
 
 // Swaps Function (assumes 18 decimals on input amountIn)
