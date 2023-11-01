@@ -6,9 +6,9 @@ Git: https://github.com/AzureKn1ght/AMM-Volume-Bot
 */
 
 // Import required node modules
+const { ethers, JsonRpcProvider } = require("ethers");
 const scheduler = require("node-schedule");
 const nodemailer = require("nodemailer");
-const { ethers } = require("ethers");
 const figlet = require("figlet");
 require("dotenv").config();
 const fs = require("fs");
@@ -16,7 +16,6 @@ const fs = require("fs");
 // Import environment variables
 const WALLET_ADDRESS = process.env.USER_ADDRESS;
 const PRIV_KEY = process.env.USER_PRIVATE_KEY;
-const USER_AGENT = process.env.USER_AGENT;
 const RPC_URL = process.env.RPC_URL;
 
 // Storage obj
@@ -28,6 +27,7 @@ var trades = {
 
 // Contract ABI (please grant ERC20 approvals)
 const uniswapABI = require("./ABI/uniswapABI");
+const explorer = "https://bscscan.com/tx/";
 const TRADE_AMT = "1.0";
 
 // All relevant addresses needed (is WBNB and PCS on BSC)
@@ -82,20 +82,8 @@ const main = async () => {
 
 // Ethers vars connect
 const connect = async () => {
-  const connection = {
-    url: RPC_URL,
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": USER_AGENT,
-      "X-Forwarded-For": randomIP(),
-      "X-Real-Ip": randomIP(),
-    },
-  };
-
   // new RPC connection
-  provider = new ethers.providers.JsonRpcProvider(connection);
-  console.log(connection.headers["X-Forwarded-For"]);
-  console.log(connection.headers["X-Real-Ip"]);
+  provider = new JsonRpcProvider(RPC_URL);
   wallet = new ethers.Wallet(PRIV_KEY, provider);
 
   // uniswap router contract
@@ -103,7 +91,7 @@ const connect = async () => {
 
   // connection established
   const balance = await provider.getBalance(WALLET_ADDRESS);
-  console.log("ETH Balance: " + ethers.utils.formatEther(balance));
+  console.log("ETH Balance:" + ethers.formatEther(balance));
   console.log("--> connected\n");
 };
 
@@ -150,8 +138,8 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     if (tries > 3) return false;
     console.log(`Try #${tries}...`);
 
-    // prepare the variables needed for the trade
-    const amt = ethers.utils.parseEther(TRADE_AMT);
+    // prepare the variables needed for trade
+    const amt = ethers.parseEther(TRADE_AMT);
     const path = [KTP, USDT, WETH];
 
     // execute the swapping function record result
@@ -161,8 +149,9 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     if (result) {
       // get the remaining balance of the current wallet
       const u = await provider.getBalance(WALLET_ADDRESS);
-      const balance = ethers.utils.formatEther(u);
-      console.log(`Balance: ${balance} ETH`);
+      const balance = ethers.formatEther(u);
+      console.log(`Balance:${balance} ETH`);
+      await scheduleNext(new Date());
 
       // successful
       const success = {
@@ -187,14 +176,14 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
 const swapExactTokensForETH = async (amountIn, path) => {
   try {
     // get amount out from uniswap router
-    const amtInFormatted = ethers.utils.formatEther(amountIn);
+    const amtInFormatted = ethers.formatEther(amountIn);
     const result = await uniswapRouter.getAmountsOut(amountIn, path);
     const expectedAmt = result[result.length - 1];
     const deadline = Date.now() + 1000 * 60 * 8;
 
     // calculate 1% slippage for ERC20 tokens
-    const amountOutMin = expectedAmt.sub(expectedAmt.div(100));
-    const amountOut = ethers.utils.formatEther(amountOutMin);
+    const amountOutMin = expectedAmt - expectedAmt / 100n;
+    const amountOut = ethers.formatEther(amountOutMin);
 
     // console log the details
     console.log("Swapping Tokens...");
@@ -215,6 +204,8 @@ const swapExactTokensForETH = async (amountIn, path) => {
     const receipt = await swap.wait();
     if (receipt) {
       console.log("TOKEN SWAP SUCCESSFUL");
+      const transactionHash = receipt.hash;
+      const t = explorer + transactionHash;
 
       // return data
       const data = {
@@ -222,7 +213,7 @@ const swapExactTokensForETH = async (amountIn, path) => {
         amountOutMin: amountOut,
         path: path,
         wallet: WALLET_ADDRESS,
-        receipt: receipt,
+        transaction_url: t,
       };
       return data;
     }
@@ -237,7 +228,6 @@ const sendReport = (report) => {
   // get the formatted date
   const today = todayDate();
   console.log(report);
-
   // configure email server
   const transporter = nodemailer.createTransport({
     host: "smtp.office365.com",
@@ -251,10 +241,7 @@ const sendReport = (report) => {
       user: process.env.EMAIL_ADDR,
       pass: process.env.EMAIL_PW,
     },
-    debug: true,
-    logger: true,
   });
-
   // setup mail params
   const mailOptions = {
     from: process.env.EMAIL_ADDR,
@@ -262,7 +249,6 @@ const sendReport = (report) => {
     subject: "Trade Report: " + today,
     text: JSON.stringify(report, null, 2),
   };
-
   // send the email message
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
@@ -305,15 +291,6 @@ const storeData = async () => {
       console.log("Data stored:\n", trades);
     }
   });
-};
-
-// Random IP Function
-const randomIP = () => {
-  const A = getRandomNum(100, 255);
-  const B = getRandomNum(0, 255);
-  const C = getRandomNum(0, 255);
-  const D = getRandomNum(0, 255);
-  return `${A}.${B}.${C}.${D}`;
 };
 
 // Generate random num Function
