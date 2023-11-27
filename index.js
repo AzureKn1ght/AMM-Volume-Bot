@@ -28,7 +28,7 @@ var trades = {
 // Contract ABI (please grant ERC20 approvals)
 const uniswapABI = require("./ABI/uniswapABI");
 const explorer = "https://bscscan.com/tx/";
-const MIN_AMT = 0.001 * 2; // gas cost x2
+const MIN_AMT = 0.001 * 5; // gas cost x5
 
 // All relevant addresses needed (is WBNB and PCS on BSC)
 const KTP = "0xc6C0C0f54a394931a5b224c8b53406633e35eeE7";
@@ -144,7 +144,7 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     const amt = await getAmt(path);
 
     // execute the swapping function record result
-    const a = ethers.parseEther(toString(1.0 * amt));
+    const a = ethers.parseEther("" + amt.toFixed(1));
     const result = await swapExactTokensForETH(a, path);
 
     // succeeded
@@ -180,12 +180,13 @@ const getAmt = async (path) => {
   // Update max "i"" as necessary
   for (let i = 1; i < 999; i++) {
     // check how much we can get out of trading
-    const amt = ethers.parseEther(i.toString());
+    const amt = ethers.parseEther("" + i.toFixed(1));
     const result = await uniswapRouter.getAmountsOut(amt, path);
     const expectedAmt = result[result.length - 1];
 
-    // check if trade enough for MIN_AMT
-    if (expectedAmt > MIN_AMT) return i;
+    // check if traded amount is enough to cover MIN_AMT
+    const amtOut = Number(ethers.formatEther(expectedAmt));
+    if (amtOut > MIN_AMT) return i;
   }
   return 1;
 };
