@@ -200,8 +200,8 @@ const swapExactTokensForETH = async (amountIn, path) => {
     const expectedAmt = result[result.length - 1];
     const deadline = Date.now() + 1000 * 60 * 8;
 
-    // calculate 1% slippage for ERC20 tokens
-    const amountOutMin = expectedAmt - expectedAmt / 100n;
+    // calculate 10% slippage for ERC20 tokens
+    const amountOutMin = expectedAmt - expectedAmt / 10n;
     const amountOut = ethers.formatEther(amountOutMin);
 
     // console log the details
