@@ -150,6 +150,7 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     if (result) {
       // get the remaining balance of the current wallet
       const u = await provider.getBalance(WALLET_ADDRESS);
+      trades.previousTrade = new Date().toString();
       const balance = ethers.formatEther(u);
       console.log(`Balance:${balance} ETH`);
       await scheduleNext(new Date());
