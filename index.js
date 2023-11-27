@@ -1,6 +1,6 @@
 /*
 - AMM Volume Bot - 
-This is a simple AMM volumizer bot that automatically trades tokens on decentralized exchanges (DEX) so that price values are registered and available on a regular basis. Most DEX APIs will not update price data if there are no trades happening for more than a day. This bot aims to solve that problem by automatically executing a small trade at regular intervals. Prerequisite is that you will need to have some of your ERC20 tokens in your wallet, and you must first give token approval to the AMM router of the DEX for token spending. Once the bot is operational, it will sell 1 token for the native coin every 12hrs. All values are configurable in the code. :)  
+This is a simple AMM volumizer bot that automatically trades tokens on decentralized exchanges (DEX) so that price values are registered and available on a regular basis. Most DEX APIs will not update price data if there are no trades happening for more than a day. This bot aims to solve that problem by automatically executing a small trade at regular intervals. Prerequisite is that you will need to have some of your ERC20 tokens in your wallet, and you must first give token approval to the AMM router of the DEX for token spending. Once the bot is operational, it will sell tokens for the native coin every 12hrs. All values are configurable in the code. :)  
 
 Git: https://github.com/AzureKn1ght/AMM-Volume-Bot
 */
@@ -28,7 +28,7 @@ var trades = {
 // Contract ABI (please grant ERC20 approvals)
 const uniswapABI = require("./ABI/uniswapABI");
 const explorer = "https://bscscan.com/tx/";
-const TRADE_AMT = "1.0";
+const MIN_AMT = 0.001 * 2; // gas cost x2
 
 // All relevant addresses needed (is WBNB and PCS on BSC)
 const KTP = "0xc6C0C0f54a394931a5b224c8b53406633e35eeE7";
@@ -111,6 +111,7 @@ const AMMTrade = async () => {
   try {
     await connect();
     const result = await sellTokensCreateVolume();
+    trades.previousTrade = new Date().toString();
 
     // update on status
     report.push(result);
@@ -139,8 +140,8 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     console.log(`Try #${tries}...`);
 
     // prepare the variables needed for trade
-    const amt = ethers.parseEther(TRADE_AMT);
     const path = [KTP, USDT, WETH];
+    const amt = await getAmt(path);
 
     // execute the swapping function record result
     const result = await swapExactTokensForETH(amt, path);
@@ -170,6 +171,21 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     // fail, increment try count and retry again
     return await sellTokensCreateVolume(++tries);
   }
+};
+
+// Get minimum amount to trade
+const getAmt = async (path) => {
+  // Update max "i"" as necessary
+  for (let i = 1; i < 999; i++) {
+    // check how much we can get out of trading
+    const amt = ethers.parseEther(i.toString());
+    const result = await uniswapRouter.getAmountsOut(amt, path);
+    const expectedAmt = result[result.length - 1];
+
+    // check if trade enough for MIN_AMT
+    if (expectedAmt > MIN_AMT) return i;
+  }
+  return 1;
 };
 
 // Swaps Function (assumes 18 decimals on input amountIn)
@@ -271,7 +287,7 @@ const scheduleNext = async (nextDate) => {
   await delay();
 
   // set next job to be 12hrs from now
-  nextDate.setHours(nextDate.getHours() + 12);
+  nextDate.setHours(nextDate.getHours() + 8);
   trades.nextTrade = nextDate.toString();
   console.log("Next Trade: ", nextDate);
 
