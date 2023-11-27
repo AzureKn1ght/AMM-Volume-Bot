@@ -144,7 +144,8 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     const amt = await getAmt(path);
 
     // execute the swapping function record result
-    const result = await swapExactTokensForETH(amt, path);
+    const a = ethers.parseEther(toString(1.0 * amt));
+    const result = await swapExactTokensForETH(a, path);
 
     // succeeded
     if (result) {
