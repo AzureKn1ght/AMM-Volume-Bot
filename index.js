@@ -28,7 +28,7 @@ var trades = {
 // Contract ABI (please grant ERC20 approvals)
 const uniswapABI = require("./ABI/uniswapABI");
 const explorer = "https://bscscan.com/tx/";
-const MIN_AMT = 0.001 * 5; // gas cost x5
+const MIN_AMT = 0.001 * 3; // gas cost x3
 
 // All relevant addresses needed (is WBNB and PCS on BSC)
 const KTP = "0xc6C0C0f54a394931a5b224c8b53406633e35eeE7";
@@ -143,8 +143,8 @@ const sellTokensCreateVolume = async (tries = 1.0) => {
     const path = [KTP, USDT, WETH];
     const amt = await getAmt(path);
 
-    // execute the swapping function record result
-    const a = ethers.parseEther("" + amt.toFixed(1));
+    // execute the swap await result
+    const a = ethers.parseEther(amt);
     const result = await swapExactTokensForETH(a, path);
 
     // succeeded
@@ -186,9 +186,12 @@ const getAmt = async (path) => {
 
     // check if traded amount is enough to cover MIN_AMT
     const amtOut = Number(ethers.formatEther(expectedAmt));
-    if (amtOut > MIN_AMT) return i;
+    if (amtOut > MIN_AMT) {
+      const dec = getRandomNum(4740217, 6530879);
+      return i + "." + dec;
+    }
   }
-  return 1;
+  return "99.9";
 };
 
 // Swaps Function (assumes 18 decimals on input amountIn)
@@ -290,7 +293,7 @@ const scheduleNext = async (nextDate) => {
   await delay();
 
   // set next job to be 12hrs from now
-  nextDate.setHours(nextDate.getHours() + 8);
+  nextDate.setHours(nextDate.getHours() + 4);
   trades.nextTrade = nextDate.toString();
   console.log("Next Trade: ", nextDate);
 
