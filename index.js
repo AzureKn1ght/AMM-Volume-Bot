@@ -23,12 +23,13 @@ var report = [];
 var trades = {
   previousTrade: "",
   nextTrade: "",
+  count: 0,
 };
 
 // Contract ABI (please grant ERC20 approvals)
 const uniswapABI = require("./ABI/uniswapABI");
 const explorer = "https://bscscan.com/tx/";
-const MIN_AMT = 0.001 * 3; // gas cost x3
+const MIN_AMT = 0.001 * 5; // gas cost x5
 
 // All relevant addresses needed (is WBNB and PCS on BSC)
 const KTP = "0xc6C0C0f54a394931a5b224c8b53406633e35eeE7";
@@ -110,8 +111,19 @@ const AMMTrade = async () => {
   report.push(`By: ${WALLET_ADDRESS}`);
   try {
     await connect();
-    const result = await sellTokensCreateVolume();
-    trades.previousTrade = new Date().toString();
+    let result;
+
+    // store last traded, increase counter
+    trades.previousTrade = today.toString();
+    const t = trades["count"];
+    trades["count"] = t + 1;
+
+    // buy every 2nd iteration
+    const buyTime = t % 2 == 0;
+
+    // execute appropriate action based on condition
+    if (buyTime) result = await buyTokensCreateVolume();
+    else result = await sellTokensCreateVolume();
 
     // update on status
     report.push(result);
@@ -231,6 +243,105 @@ const swapExactTokensForETH = async (amountIn, path) => {
 
       // return data
       const data = {
+        type: "SELL",
+        amountIn: amtInFormatted,
+        amountOutMin: amountOut,
+        path: path,
+        wallet: WALLET_ADDRESS,
+        transaction_url: t,
+      };
+      return data;
+    }
+  } catch (error) {
+    console.error(error);
+  }
+  return false;
+};
+
+// AMM Volume Trading Function
+const buyTokensCreateVolume = async (tries = 1.0) => {
+  try {
+    // limit to maximum 3 tries
+    if (tries > 3) return false;
+    console.log(`Try #${tries}...`);
+
+    // prepare the variables needed for the trade
+    const a = ethers.parseEther(MIN_AMT.toString());
+    const path = [WETH, USDT, KTP];
+
+    // execute the swap transaction and await result
+    const result = await swapExactETHForTokens(a, path);
+
+    // succeeded
+    if (result) {
+      // get the remaining balance of the current wallet
+      const u = await provider.getBalance(WALLET_ADDRESS);
+      trades.previousTrade = new Date().toString();
+      const balance = ethers.formatEther(u);
+      console.log(`Balance:${balance} ETH`);
+      await scheduleNext(new Date());
+
+      // successful
+      const success = {
+        balance: balance,
+        success: true,
+        trade: result,
+      };
+
+      return success;
+    } else throw new Error();
+  } catch (error) {
+    console.log("Attempt Failed!");
+    console.log("retrying...");
+    console.error(error);
+
+    // fail, increment try count and retry again
+    return await sellTokensCreateVolume(++tries);
+  }
+};
+
+// Swaps Function (assumes 18 decimals on input amountIn)
+const swapExactETHForTokens = async (amountIn, path) => {
+  try {
+    // get amount out from uniswap router
+    const amtInFormatted = ethers.formatEther(amountIn);
+    const result = await uniswapRouter.getAmountsOut(amountIn, path);
+    const expectedAmt = result[result.length - 1];
+    const deadline = Date.now() + 1000 * 60 * 8;
+
+    // calculate 10% slippage for received ERC20 tokens
+    const amountOutMin = expectedAmt - expectedAmt / 10n;
+    const amountOut = ethers.formatEther(amountOutMin);
+
+    // set transaction options
+    const overrideOptions = {
+      value: amountIn,
+    };
+
+    // console log the details
+    console.log("Swapping Tokens...");
+    console.log("Amount In: " + amtInFormatted);
+    console.log("Amount Out: " + amountOut);
+
+    // execute the transaction to exact ETH for tokens
+    const swap = await uniswapRouter.swapExactETHForTokens(
+      amountOutMin,
+      path,
+      WALLET_ADDRESS,
+      deadline,
+      overrideOptions
+    );
+
+    // wait for transaction complete
+    const receipt = await swap.wait();
+    if (receipt) {
+      console.log("TOKEN SWAP SUCCESSFUL");
+      const transactionHash = receipt.hash;
+      const t = explorer + transactionHash;
+
+      // return data
+      const data = {
+        type: "BUY",
         amountIn: amtInFormatted,
         amountOutMin: amountOut,
         path: path,
